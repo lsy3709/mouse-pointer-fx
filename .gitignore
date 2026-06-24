@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# Editors / IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Tooling state (not part of the project)
+.omc/
+.claude/
