@@ -13,6 +13,10 @@ _A Windows overlay for presentations: laser pointer, click effects & on‑screen
 ![Tests](https://img.shields.io/badge/tests-88%20passed-success)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+<br/>
+
+<img src="docs/demo.gif" width="760" alt="Mouse Pointer FX 데모 — 레이저 포인터, 클릭 효과, 키 입력 표시" />
+
 </div>
 
 ---
