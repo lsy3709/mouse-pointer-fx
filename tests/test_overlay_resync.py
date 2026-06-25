@@ -113,6 +113,33 @@ def test_keycast_ime_unknown_keeps_default(overlay, monkeypatch):
     assert overlay.keycast.text() == "a"
 
 
+def test_reasserts_topmost_periodically(overlay, monkeypatch):
+    # 포인터가 보이는 상태(시스템 커서 숨김 케이스)에서는 z-순서를 주기적으로 재주장해야 함
+    calls = []
+    monkeypatch.setattr(overlay_mod.win32gui, "SetWindowPos",
+                        lambda hwnd, after, *a, **k: calls.append(after))
+    overlay.cfg["pointer"]["enabled"] = True
+    overlay.laser_active = False
+    overlay.keycast_active = False
+    for _ in range(60):
+        overlay._tick()
+    assert any(after == overlay_mod.win32con.HWND_TOPMOST for after in calls), \
+        "_tick 이 HWND_TOPMOST 로 z-순서를 재주장하지 않음"
+
+
+def test_no_topmost_reassert_when_idle(overlay, monkeypatch):
+    # 아무것도 그리지 않고 시스템 커서도 안 숨기는 상태면 z-순서를 건드리지 않음
+    calls = []
+    monkeypatch.setattr(overlay_mod.win32gui, "SetWindowPos",
+                        lambda *a, **k: calls.append(a))
+    overlay.cfg["pointer"]["enabled"] = False
+    overlay.laser_active = False
+    overlay.keycast_active = False
+    for _ in range(60):
+        overlay._tick()
+    assert calls == []
+
+
 def test_no_resync_when_metrics_unchanged(overlay, monkeypatch):
     calls = {"n": 0}
     orig = overlay._resync_display

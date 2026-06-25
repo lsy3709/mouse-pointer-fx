@@ -37,6 +37,7 @@ class Overlay(QWidget):
         self._origin = (0, 0)             # 가상 데스크톱 좌상단(물리 px)
         self._virt = None                 # 마지막 적용한 가상화면 (vx,vy,vw,vh)
         self._resync_div = 0              # 디스플레이 변경 감지 스로틀 카운터
+        self._top_div = 0                 # topmost(z-순서) 재주장 스로틀 카운터
         self._cursor = (0, 0)             # 마지막 커서 위치(물리 px)
         self._prev_cursor = (0, 0)
         self._last_dirty = QRect()
@@ -54,6 +55,7 @@ class Overlay(QWidget):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self._timer.start(self._interval_ms())
+        self._top_target = max(1, round(70 / self._interval_ms()))  # ≈70ms 마다 재주장
 
         # 모니터 추가/제거/주화면 변경 시 즉시 재동기화
         # (화면 잠금/해제는 _tick 의 주기 감지가 보강한다)
@@ -96,6 +98,7 @@ class Overlay(QWidget):
         self._apply_geometry()
         self._apply_exstyles()
         self.raise_()
+        self._reassert_topmost()
         self.update()
 
     def _check_display_change(self) -> None:
@@ -106,6 +109,24 @@ class Overlay(QWidget):
             return
         if cur != self._virt:
             self._resync_display()
+
+    def _reassert_topmost(self) -> None:
+        """다른 창(특히 topmost 창)에 가려져 커서가 사라지지 않도록 z-순서를 위로 재주장.
+
+        시스템 커서를 전역으로 숨긴 상태에서 오버레이가 뒤로 밀리면 그 위에선 커서가
+        완전히 안 보이게 된다. 그릴 게 있을 때 주기적으로 HWND_TOPMOST 로 끌어올린다.
+        """
+        if not (self.cfg["pointer"].get("enabled", True)
+                or self.laser_active or self.keycast_active):
+            return
+        try:
+            hwnd = int(self.winId())
+            win32gui.SetWindowPos(
+                hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0,
+                win32con.SWP_NOMOVE | win32con.SWP_NOSIZE
+                | win32con.SWP_NOACTIVATE | win32con.SWP_NOOWNERZORDER)
+        except Exception:
+            pass
 
     def showEvent(self, event):  # noqa: N802
         super().showEvent(event)
@@ -132,6 +153,7 @@ class Overlay(QWidget):
             self.keycast.set_hangul(True)
         self._kc_last_text = ""
         self._timer.start(self._interval_ms())
+        self._top_target = max(1, round(70 / self._interval_ms()))
         self._apply_geometry()
         self.update()
 
@@ -235,6 +257,12 @@ class Overlay(QWidget):
         if self._resync_div >= 30:
             self._resync_div = 0
             self._check_display_change()
+
+        # 다른 창에 가려져 커서가 사라지지 않도록 z-순서(topmost)를 주기적으로 재주장
+        self._top_div += 1
+        if self._top_div >= self._top_target:
+            self._top_div = 0
+            self._reassert_topmost()
 
         # keycast 표시 만료/변경 시 중앙 띠 갱신(움직임 없어도 사라지게)
         self._refresh_keycast()
